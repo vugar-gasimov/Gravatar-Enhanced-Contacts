@@ -30,6 +30,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    avatarUrl: {
+      type: String,
+      required: [true, "Avatar is required"],
+      default: "../public/default_avatar/8380015.webp",
+    },
   },
   { versionKey: false, timestamps: true }
 );

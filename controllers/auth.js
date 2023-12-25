@@ -1,8 +1,14 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const gravatar = require("gravatar");
+const path = require("path");
+const fs = require("fs/promises");
+
 const { User } = require("../models/user");
 const { CustomError, ctrlWrapper } = require("../helpers");
 const { SECRET_KEY } = process.env;
+
+const avatarsDir = path.join(__dirname, "../", "public", "avatars");
 
 const signup = async (req, res) => {
   const { email, password } = req.body;
@@ -11,7 +17,12 @@ const signup = async (req, res) => {
     throw CustomError(409, "This email already exists");
   }
   const hashedPassword = await bcrypt.hash(password, 11);
-  const newUser = await User.create({ ...req.body, password: hashedPassword });
+  const avatarUrl = gravatar.url(email);
+  const newUser = await User.create({
+    ...req.body,
+    password: hashedPassword,
+    avatarUrl,
+  });
 
   res.status(201).json({
     email: newUser.email,
@@ -69,31 +80,41 @@ const logout = async (req, res) => {
   }
 };
 
-const updateUserSubscription = async (req, res) => {
-  try {
-    const { _id: userId } = req.user;
-    const { subscription: newSubscription } = req.body;
-    const validSubscriptions = ["starter", "pro", "business"];
-    if (!validSubscriptions.includes(newSubscription)) {
-      return res.status(400).json({ message: "Invalid subscription type" });
-    }
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { subscription: newSubscription },
-      { new: true }
-    );
-    if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    const { name, email, subscription, token, updatedAt } = updatedUser;
-    res
-      .status(200)
-      .json({ user: { name, email, subscription, token, updatedAt } });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to update subscription", error: error.message });
+const updateSubscription = async (req, res) => {
+  const { _id: userId } = req.user;
+  const { subscription: newSubscription } = req.body;
+  const validSubscriptions = ["starter", "pro", "business"];
+  if (!validSubscriptions.includes(newSubscription)) {
+    return res.status(400).json({ message: "Invalid subscription type" });
   }
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { subscription: newSubscription },
+    { new: true }
+  );
+  if (!updatedUser) {
+    return res.status(404).json({ message: "User not found" });
+  }
+  const { name, email, subscription, avatarUrl, token, updatedAt } =
+    updatedUser;
+  res.json({
+    message: "Subscription updated successfully",
+    user: { name, email, subscription, avatarUrl, token, updatedAt },
+  });
+};
+
+const updateAvatar = async (req, res) => {
+  const { _id, name, email, subscription, updatedAt } = req.user;
+  const { path: tempUpload, originalname } = req.file;
+  const filename = `${_id}_${originalname}`;
+  const resultUpload = path.join(avatarsDir, filename);
+  await fs.rename(tempUpload, resultUpload);
+  const avatarUrl = path.join("avatars", filename);
+  await User.findByIdAndUpdate(_id, { avatarUrl });
+  res.json({
+    message: "Avatar downloaded successfully",
+    user: { name, email, subscription, avatarUrl, updatedAt },
+  });
 };
 
 module.exports = {
@@ -101,5 +122,6 @@ module.exports = {
   login: ctrlWrapper(login),
   getCurrent: ctrlWrapper(getCurrent),
   logout: ctrlWrapper(logout),
-  updateUserSubscription: ctrlWrapper(updateUserSubscription),
+  updateSubscription: ctrlWrapper(updateSubscription),
+  updateAvatar: ctrlWrapper(updateAvatar),
 };
