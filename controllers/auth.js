@@ -67,8 +67,10 @@ const getCurrent = async (req, res) => {
 
 const logout = async (req, res) => {
   const { _id } = req.user;
-  await User.findByIdAndUpdate(_id, { token: null });
-
+  const user = await User.findByIdAndUpdate(_id, { token: null });
+  if (!user) {
+    throw CustomError(404, "User not found");
+  }
   res.json({ message: "Logout successful" });
 };
 
@@ -85,7 +87,7 @@ const updateSubscription = async (req, res) => {
     { new: true }
   );
   if (!updatedUser) {
-    return res.status(404).json({ message: "User not found" });
+    throw CustomError(404, "User not found");
   }
   const { name, email, subscription, avatarUrl, token, updatedAt } =
     updatedUser;
@@ -102,7 +104,10 @@ const updateAvatar = async (req, res) => {
   const resultUpload = path.join(avatarsDir, filename);
   await fs.rename(tempUpload, resultUpload);
   const avatarUrl = path.join("avatars", filename);
-  await User.findByIdAndUpdate(_id, { avatarUrl });
+  const updatedUser = await User.findByIdAndUpdate(_id, { avatarUrl });
+  if (!updatedUser) {
+    throw CustomError(404, "User not found");
+  }
   res.json({
     message: "Avatar downloaded successfully",
     user: { name, email, subscription, avatarUrl, updatedAt },
