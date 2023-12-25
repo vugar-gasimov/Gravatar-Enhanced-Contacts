@@ -66,18 +66,10 @@ const getCurrent = async (req, res) => {
 };
 
 const logout = async (req, res) => {
-  try {
-    const { _id } = req.user;
-    const user = await User.findByIdAndUpdate(_id, { token: null });
+  const { _id } = req.user;
+  await User.findByIdAndUpdate(_id, { token: null });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    res.status(200).json({ message: "Logout successful" });
-  } catch (error) {
-    res.status(500).json({ message: "Logout failed", error: error.message });
-  }
+  res.json({ message: "Logout successful" });
 };
 
 const updateSubscription = async (req, res) => {
